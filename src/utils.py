@@ -1,3 +1,6 @@
+import sys
+
+
 CITIES = {
     "MOSCOW": "https://code.s3.yandex.net/async-module/moscow-response.json",
     "PARIS": "https://code.s3.yandex.net/async-module/paris-response.json",
@@ -14,10 +17,9 @@ CITIES = {
     "BUCHAREST": "https://code.s3.yandex.net/async-module/bucharest-response.json",
     "ROMA": "https://code.s3.yandex.net/async-module/roma-response.json",
     "CAIRO": "https://code.s3.yandex.net/async-module/cairo-response.json",
-
     "GIZA": "https://code.s3.yandex.net/async-module/giza-response.json",
     "MADRID": "https://code.s3.yandex.net/async-module/madrid-response.json",
-    "TORONTO": "https://code.s3.yandex.net/async-module/toronto-response.json"
+    "TORONTO": "https://code.s3.yandex.net/async-module/toronto-response.json",
 }
 
 MIN_MAJOR_PYTHON_VER = 3
@@ -25,8 +27,6 @@ MIN_MINOR_PYTHON_VER = 9
 
 
 def check_python_version():
-    import sys
-
     if (
         sys.version_info.major < MIN_MAJOR_PYTHON_VER
         or sys.version_info.minor < MIN_MINOR_PYTHON_VER
@@ -36,10 +36,3 @@ def check_python_version():
                 MIN_MAJOR_PYTHON_VER, MIN_MINOR_PYTHON_VER
             )
         )
-
-
-def get_url_by_city_name(city_name):
-    try:
-        return CITIES[city_name]
-    except KeyError:
-        raise Exception("Please check that city {} exists".format(city_name))
