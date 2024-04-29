@@ -3,16 +3,13 @@ import logging
 from http import HTTPStatus
 from urllib.request import urlopen
 
+logger = logging.getLogger()
+
 ERR_MESSAGE_TEMPLATE = "Unexpected error: {error}"
 
 
-logger = logging.getLogger()
-
-
 class YandexWeatherAPI:
-    """
-    Base class for requests
-    """
+    """Base class for requests"""
 
     def __do_req(url: str) -> str:
         """Base request method"""

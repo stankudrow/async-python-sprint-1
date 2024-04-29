@@ -134,9 +134,11 @@ class DayInfo:
             "hours_start": self.hour_start,
             "hours_end": self.hour_end,
             "hours_count": self.hours_count,
-            "temp_avg": round(self.temperature_avg, 3)
-            if self.temperature_avg
-            else self.temperature_avg,
+            "temp_avg": (
+                round(self.temperature_avg, 3)
+                if self.temperature_avg
+                else self.temperature_avg
+            ),
             "relevant_cond_hours": self.relevant_condition_hours,
         }
 
