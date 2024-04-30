@@ -108,7 +108,7 @@ def main_task(city_names: tuple[str], file_object):
         msg = "No cities to analyse. Exit"
         if final_results:
             favourable_cities = analyse_forecasts_task(final_results)
-            msg = f"The best city or cities are: {favourable_cities}"
+            msg = f"The best city/cities is/are: {favourable_cities}"
         # this code is within the context manager of a file which can be stdout.
         # Otherwise, `ValueError: I/O operation on closed file.`
         print(msg)

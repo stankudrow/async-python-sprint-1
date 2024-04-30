@@ -13,7 +13,7 @@ CITIES = {
     "BERLIN": "https://code.s3.yandex.net/async-module/berlin-response.json",
     "BEIJING": "https://code.s3.yandex.net/async-module/beijing-response.json",
     "KAZAN": "https://code.s3.yandex.net/async-module/kazan-response.json",
-    "SAINT-PETERSBURG": "https://code.s3.yandex.net/async-module/spetersburg-response.json",
+    "SPETERSBURG": "https://code.s3.yandex.net/async-module/spetersburg-response.json",
     "VOLGOGRAD": "https://code.s3.yandex.net/async-module/volgograd-response.json",
     "NOVOSIBIRSK": "https://code.s3.yandex.net/async-module/novosibirsk-response.json",
     "KALININGRAD": "https://code.s3.yandex.net/async-module/kaliningrad-response.json",
