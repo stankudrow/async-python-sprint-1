@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, NonNegativeInt
 
 
 FORECAST = dict[str, Any]
@@ -36,4 +36,42 @@ class DayInfo(BaseModel):
         return {
             "date": self.date_,
             "hours": hours,
+        }
+
+
+class StatsInfo(BaseModel):
+    date_: None | date = None
+    hours_start: None | NonNegativeInt = None
+    hours_end: None | NonNegativeInt = None
+    hours_count: None | NonNegativeInt = None
+    temp_avg: None | float = None
+    relevant_cond_hours: NonNegativeInt = 0
+
+    @field_validator("date_", mode="before")
+    @classmethod
+    def validate_date(cls, date_):
+        if isinstance(date_, str):
+            return date.fromisoformat(date_)
+        return date_
+
+    def model_post_init(self, _ctx):
+        hs, he = self.hours_start, self.hours_end
+        hc = self.hours_count
+        if (hs is None) and (he is None) and (hc is None):
+            return
+        if hs > he:
+            msg = f"hours_end={he} < hours_start={hs}"
+            raise ValueError(msg)
+        if he and not hc:
+            msg = f"hours_count={hc} is zero with non-zero hours"
+            raise ValueError(msg)
+
+    def to_json(self) -> FORECAST:
+        return {
+            "date": self.date_.isoformat() if self.date_ else None,
+            "hours_start": self.hours_start,
+            "hours_end": self.hours_end,
+            "hours_count": self.hours_count,
+            "temp_avg": self.temp_avg,
+            "relevant_cond_hours": self.relevant_cond_hours,
         }

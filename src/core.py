@@ -3,7 +3,7 @@ from typing import Any
 import httpx
 
 from src.exceptions import YandexWeatherAPIError
-from src.types_ import FORECAST, HourInfo, DayInfo
+from src.types_ import FORECAST, HourInfo, DayInfo, StatsInfo
 from src.utils import get_url_by_city_name, FETCH_TIMEOUT, SUITABLE_CONDITIONS
 
 
@@ -45,8 +45,10 @@ def select_forecast_days(forecasts: list[FORECAST]) -> list[DayInfo]:
 
     days_info: list[DayInfo] = []
     for forecast in forecasts:
-        date = forecast["date"]
-        hours = forecast["hours"]
+        if not (date := forecast.get("date")):
+            continue
+        if not (hours := forecast.get("hours")):
+            continue
         hours_info: list[HourInfo] = []
         for hour_forecast in hours:
             hour = int(hour_forecast["hour"])
@@ -54,6 +56,8 @@ def select_forecast_days(forecasts: list[FORECAST]) -> list[DayInfo]:
                 cond = hour_forecast["condition"]
                 if cond in SUITABLE_CONDITIONS:
                     temp = hour_forecast["temp"]
+                    if temp is not None:
+                        temp = float(temp)
                     hours_info.append(
                         HourInfo(hour=hour, temperature=temp, condition=cond)
                     )
@@ -61,33 +65,43 @@ def select_forecast_days(forecasts: list[FORECAST]) -> list[DayInfo]:
     return days_info
 
 
-def analyse_forecast_days(days: list[DayInfo]) -> list[dict[str, Any]]:
+def aggregate_forecast_stats(forecasts: list[FORECAST]) -> list[dict[str, Any]]:
     """Results in analysed forecast data."""
 
+    days = select_forecast_days(forecasts=forecasts)
     results: list[dict[str, Any]] = []
     for day in days:
         date_ = day.date_
         hours, start_hour, end_hour = None, None, None
         avg_temp = None
-        hours_count, rel_cond_hours = 0, 0
+        hours_count, rel_cond_hours = None, 0
         if hours := day.hours:
             hours = sorted(hours, key=lambda hi: hi.hour)  # type: ignore
             start_hour = hours[0].hour
             end_hour = hours[-1].hour
             hours_count = rel_cond_hours = len(hours)
-            temp = sum(h.temperature for h in hours)  # type: ignore
-            avg_temp = temp / rel_cond_hours if rel_cond_hours else None
-            if avg_temp:
-                avg_temp = round(avg_temp, 3)
+            # a tedious process of analytics with validation pleasing
+            temp: None | float = 0.0
+            all_none = True
+            for hour in hours:
+                t = hour.temperature
+                if t is not None:
+                    all_none = False
+                    temp += t  # type: ignore
+            temp = None if all_none else temp
+            if temp:
+                avg_temp = temp / rel_cond_hours if rel_cond_hours else None
+                if avg_temp:
+                    avg_temp = round(avg_temp, 3)
         date_ = date_.isoformat() if date_ else date_  # type: ignore
         results.append(
-            {
-                "date": date_,
-                "hours_start": start_hour,
-                "hours_end": end_hour,
-                "hours_count": hours_count,
-                "temp_avg": avg_temp,
-                "relevant_cond_hours": rel_cond_hours,
-            }
+            StatsInfo(
+                date_=date_,
+                hours_start=start_hour,
+                hours_end=end_hour,
+                hours_count=hours_count,
+                temp_avg=avg_temp,
+                relevant_cond_hours=rel_cond_hours,
+            ).to_json()
         )
     return results

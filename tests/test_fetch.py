@@ -1,6 +1,6 @@
 import pytest
 
-from src.core import fetch_forecasts 
+from src.core import fetch_forecasts
 from src.exceptions import YandexWeatherAPIError
 
 
