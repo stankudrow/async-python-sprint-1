@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from concurrent.futures import (
     ProcessPoolExecutor,
     ThreadPoolExecutor,
@@ -8,7 +9,7 @@ from concurrent.futures import (
 from json import dump
 from typing import Any
 
-from src.core import fetch_forecasts, select_forecast_days, analyse_forecast_days
+from src.core import fetch_forecasts, aggregate_forecast_stats
 from src.exceptions import YandexWeatherAPIError
 from src.types_ import FORECAST
 from src.utils import check_python_version, FETCH_TIMEOUT
@@ -31,20 +32,43 @@ def fetch_forecasts_task(
     return (city_name, forecasts)
 
 
-def analyse_forecasts_task(city_name: str, forecasts: list[FORECAST]):
+def aggregate_forecasts_task(city_name: str, forecasts: list[FORECAST]):
     """Returns the analysed forecasts for the city."""
 
-    info = None
+    stats = None
     try:
-        days = select_forecast_days(forecasts=forecasts)
-        info = analyse_forecast_days(days=days)
+        stats = aggregate_forecast_stats(forecasts=forecasts)
     except Exception as e:
-        print(f"EXC = {e}")
-    return (city_name, info)
+        msg = f"DataAggregationError: {e}"
+        logging.error(msg)
+    result = {"days": stats}
+    return (city_name, result)
 
 
-def main_task(city_names: list[str], file_object):
+def analyse_forecasts_task(cities_days: dict[str, dict[str, Any]]) -> list[str]:
+    """Returns the list of favourable cities."""
+
+    results: dict[tuple[float, int], list[str]] = defaultdict(list)
+    for city, analytics in cities_days.items():
+        days: list[dict[str, Any]] = analytics["days"]
+        total_temp: float = 0.0
+        total_conds: int = 0
+        for day in days:
+            atemp = day["temp_avg"]
+            conds = day["relevant_cond_hours"]
+            if atemp and conds:
+                total_temp += atemp
+                total_conds += conds
+        results[(total_temp, total_conds)].append(city)
+    return results[max(results)]
+
+
+def main_task(city_names: tuple[str], file_object):
     check_python_version()
+
+    if not city_names:
+        print("No cities were given. Exit.")
+        return
 
     cities = set(cname.lower() for cname in city_names)
     final_results: dict[str, dict[str, Any]] = {}
@@ -65,7 +89,7 @@ def main_task(city_names: list[str], file_object):
                 logging.warning(f"no forecasts for the city {city!r}")
                 continue
             analysed_futures.append(
-                proc_pool.submit(analyse_forecasts_task, city, forecasts)
+                proc_pool.submit(aggregate_forecasts_task, city, forecasts)
             )
 
         # aggregating the successfully analysed results
@@ -77,5 +101,14 @@ def main_task(city_names: list[str], file_object):
             final_results[city] = analysed_result
 
     # the results are already aggregated
+    # so we can write them in the main thread...
     with file_object as fout:
         dump(obj=final_results, fp=fout, indent=2)
+        # ...and choose the best cities in the same main thread
+        msg = "No cities to analyse. Exit"
+        if final_results:
+            favourable_cities = analyse_forecasts_task(final_results)
+            msg = f"The best city or cities are: {favourable_cities}"
+        # this code is within the context manager of a file which can be stdout.
+        # Otherwise, `ValueError: I/O operation on closed file.`
+        print(msg)
