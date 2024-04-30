@@ -6,13 +6,16 @@ from concurrent.futures import (
     as_completed,
     Future,
 )
-from json import dump
-from typing import Any
+import json
+from typing import Any, TextIO
 
 from src.core import fetch_forecasts, aggregate_forecast_stats
 from src.exceptions import YandexWeatherAPIError
 from src.types_ import FORECAST
 from src.utils import check_python_version, FETCH_TIMEOUT
+
+
+logging.basicConfig(level=logging.INFO)
 
 
 def fetch_forecasts_task(
@@ -63,11 +66,11 @@ def analyse_forecasts_task(cities_days: dict[str, dict[str, Any]]) -> list[str]:
     return results[max(results)]
 
 
-def main_task(city_names: tuple[str], file_object):
+def main_task(city_names: tuple[str], file_object: TextIO):
     check_python_version()
 
     if not city_names:
-        print("No cities were given. Exit.")
+        logging.info("No cities were given. Exit.")
         return
 
     cities = set(cname.lower() for cname in city_names)
@@ -102,13 +105,15 @@ def main_task(city_names: tuple[str], file_object):
 
     # the results are already aggregated
     # so we can write them in the main thread...
-    with file_object as fout:
-        dump(obj=final_results, fp=fout, indent=2)
-        # ...and choose the best cities in the same main thread
-        msg = "No cities to analyse. Exit"
-        if final_results:
-            favourable_cities = analyse_forecasts_task(final_results)
-            msg = f"The best city/cities is/are: {favourable_cities}"
-        # this code is within the context manager of a file which can be stdout.
-        # Otherwise, `ValueError: I/O operation on closed file.`
-        print(msg)
+    json_data = json.dumps(obj=final_results, indent=2)
+    if not file_object.isatty():
+        with file_object as fout:
+            fout.write(json_data)
+    else:
+        logging.info(json_data)
+    # ...and choose the best cities in the same main thread
+    msg = "No cities to analyse. Exit"
+    if final_results:
+        favourable_cities = analyse_forecasts_task(final_results)
+        msg = f"The best city/cities is/are: {favourable_cities}"
+    logging.info(msg)
